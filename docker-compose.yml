@@ -42,7 +42,7 @@ services:
       timeout: 20s
       retries: 10
     ports:
-      - "3306:3306"
+      - "20002:3306"
     volumes:
       - ./db:/var/lib/mysql
       - ./logs/mysql:/var/log/mysql

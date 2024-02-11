@@ -3,7 +3,7 @@
 ## Стек
 * Nginx (порт: 8081)
 * Php 8.1
-* MySQL
+* MySQL (порт: 20002)
 
 
 * phpMyAdmin (порт: 8082)
