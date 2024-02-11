@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+
+  nginx:
+    container_name: nginx
+    image: nginx:alpine
+    ports:
+      - 8081:80
+    restart: always
+    volumes:
+      - ./logs/nginx:/var/log/nginx
+      - ./www:/var/www
+      - ./docker/nginx/conf.d/:/etc/nginx/conf.d/
+    depends_on:
+      - php-fpm
+    networks:
+      mynetwork:
+
+  php-fpm:
+    container_name: php-fpm
+    image: 'php8'
+    build:
+      context: ./docker/php8
+      args:
+        - BX_XDEBUG_IP=127.0.0.1
+        - BX_XDEBUG_PORT=9999
+        - BX_DEFAULT_CHARSET=UTF-8
+    restart: always
+    volumes:
+      - ./logs/php:/var/log/php-fpm
+      - ./www:/var/www
+    networks:
+      mynetwork:
+
+  mysql:
+    container_name: mysql
+    image: 'mariadb'
+    healthcheck:
+      test: "/usr/bin/mysql --user=root --password=example--execute \"SHOW DATABASES;\""
+      interval: 2s
+      timeout: 20s
+      retries: 10
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./db:/var/lib/mysql
+      - ./logs/mysql:/var/log/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+      MYSQL_DATABASE: sitemanager
+      MYSQL_USER: bitrix
+      MYSQL_PASSWORD: example
+    command: [ '--character-set-server=utf8', '--collation-server=utf8_unicode_ci', '--skip-character-set-client-handshake', '--sql-mode=' ]
+    networks:
+      mynetwork:
+        aliases:
+          - mysql
+
+  phpmyadmin:
+    container_name: phpmyadmin
+    image: phpmyadmin/phpmyadmin
+    links:
+      - mysql:mysql
+    ports:
+      - 8082:80
+    environment:
+      PMA_HOST: mysql
+      MYSQL_USERNAME: bitrix
+      MYSQL_PASSWORD: example
+    networks:
+      mynetwork:
+        aliases:
+          - mysql
+
+  memcached:
+    container_name: memcached
+    image: memcached:alpine
+    restart: always
+    networks:
+      mynetwork:
+
+  cronjobber:
+    container_name: cronjobber
+    image: docker:edge
+    volumes:
+      - //var/run/docker.sock:/var/run/docker.sock
+    command: >
+      sh -c "
+      echo '* * * * * docker exec php-fpm php -f ./var/www/bitrix/php_interface/cron_events.php' > /etc/crontabs/root
+      && crond -f"
+    networks:
+      mynetwork:
+
+networks:
+  mynetwork:
+    driver: bridge
